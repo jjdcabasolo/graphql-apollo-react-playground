@@ -1,8 +1,8 @@
 import React, {useState} from "react";  
 import "./style-sessions.css";
-import { gql, useQuery } from "@apollo/client";
-import { Link } from "react-router-dom"
-import { Formik, Field, Form } from "formik"
+import { gql, useQuery, useMutation } from "@apollo/client";
+import { Link } from "react-router-dom";
+import { Formik, Field, Form } from "formik";
 
 /* ---> Define queries, mutations and fragments here */
 const SESSIONS_ATTRIBUTES = gql`
@@ -21,6 +21,15 @@ const SESSIONS_ATTRIBUTES = gql`
   }
 `;
 
+const CREATE_SESSION = gql`
+  mutation createSession($session: SessionInput!) {
+    createSession(session: $session) {
+      ...SessionInfo
+    }
+  }
+  ${SESSIONS_ATTRIBUTES}
+`;
+
 const SESSIONS = gql`
   query sessions($day: String!, $isDescription: Boolean!) {
     introduction: sessions(day: $day, level: "Introductory and overview") {
@@ -30,6 +39,15 @@ const SESSIONS = gql`
       ...SessionInfo
     }
     advanced: sessions(day: $day, level: "Advanced") {
+      ...SessionInfo
+    }
+  }
+  ${SESSIONS_ATTRIBUTES}
+`;
+
+const ALL_SESSIONS = gql`
+  query sessions {
+    sessions {
       ...SessionInfo
     }
   }
@@ -166,8 +184,32 @@ export function Sessions() {
 }
 
 export function SessionForm() {	
-
   /* ---> Call useMutation hook here to create new session and update cache */
+  const updateSessions = (cache, { data }) => {
+    cache.modify({
+      fields: {
+        sessions (existingSessions = []) {
+          const newSession = data.createSession;
+          cache.writeQuery({
+            query: ALL_SESSIONS,
+            data: { newSession, ...existingSessions },
+          });
+        }
+      }
+    })
+  }
+
+  const [create, { called, error }] = useMutation(CREATE_SESSION, {
+    update: updateSessions,
+  });
+
+  if (called) {
+    return <p>Session submited successfully!</p>
+  }
+
+  if (error) {
+    return <p>Error in submitting session submited!</p>
+  }
 
   return (	
     <div	
@@ -186,8 +228,11 @@ export function SessionForm() {
           day: "",	
           level: "",	
         }}	
-        onSubmit={() => {
+        onSubmit={async (values) => {
           /* ---> Call useMutation mutate function here to create new session */
+          await create({ variables: {
+            session: values,
+          }});
         }}	
       >	
         {() => (	
