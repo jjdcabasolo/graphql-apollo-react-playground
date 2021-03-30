@@ -1,36 +1,127 @@
 import React, {useState} from "react";  
 import "./style-sessions.css";
+import { gql, useQuery } from "@apollo/client";
 import { Link } from "react-router-dom"
 import { Formik, Field, Form } from "formik"
 
 /* ---> Define queries, mutations and fragments here */
+const SESSIONS_ATTRIBUTES = gql`
+  fragment SessionInfo on Session {
+    id
+    title
+    day
+    room
+    level
+    startsAt
+    description @include(if: $isDescription)
+    speakers {
+      id
+      name
+    }
+  }
+`;
+
+const SESSIONS = gql`
+  query sessions($day: String!, $isDescription: Boolean!) {
+    introduction: sessions(day: $day, level: "Introductory and overview") {
+      ...SessionInfo
+    }
+    intermediate: sessions(day: $day, level: "Intermediate") {
+      ...SessionInfo
+    }
+    advanced: sessions(day: $day, level: "Advanced") {
+      ...SessionInfo
+    }
+  }
+  ${SESSIONS_ATTRIBUTES}
+`;
+
+const SessionList = ({ day }) => {
+  if (day === '') day = 'Wednesday';
+
+  let isDescription = true;
+
+  // execute query and store reponse in JSON
+  const { loading, error, data } = useQuery(SESSIONS, {
+    variables: { day, isDescription },
+  });
+
+  if (loading) {
+    return <p>Loading...</p>;
+  }
+
+  if (error) {
+    return <p>Error loading sessions!</p>;
+  }
+
+  const results = [];
+
+  results.push(data.introduction.map((session) => (
+    <SessionItem
+      key={session.id}
+      session={{...session}}
+    />
+  )));
+
+  results.push(data.intermediate.map((session) => (
+    <SessionItem
+      key={session.id}
+      session={{...session}}
+    />
+  )));
+
+  results.push(data.advanced.map((session) => (
+    <SessionItem
+      key={session.id}
+      session={{...session}}
+    />
+  )));
+
+  return results;
+};
 
 function AllSessionList() {
    /* ---> Invoke useQuery hook here to retrieve all sessions and call SessionItem */
    return <SessionItem />
 }
 
-function SessionList () {
-  /* ---> Invoke useQuery hook here to retrieve sessions per day and call SessionItem */
-  return <SessionItem />
-}
-
-function SessionItem() {
-
+function SessionItem({ session }) {
   /* ---> Replace hard coded session values with data that you get back from GraphQL server here */
+  const {
+    day,
+    description,
+    id,
+    level,
+    room,
+    speakers,
+    startsAt,
+    title,
+  } = session;
+
   return (
-    <div key={'id'} className="col-xs-12 col-sm-6" style={{ padding: 5 }}>
+    <div key={id} className="col-xs-12 col-sm-6" style={{ padding: 5 }}>
       <div className="panel panel-default">
         <div className="panel-heading">
-          <h3 className="panel-title">{"title"}</h3>
-          <h5>{`Level: `}</h5>
+          <h3 className="panel-title">{title}</h3>
+          <h5>{`Level: ${level}`}</h5>
         </div>
         <div className="panel-body">
-          <h5>{`Day: `}</h5>
-          <h5>{`Room Number: `}</h5>
-          <h5>{`Starts at: `}</h5>
+          <h5>{`Day: ${day}`}</h5>
+          <h5>{`Room Number: ${room}`}</h5>
+          <h5>{`Starts at: ${startsAt}`}</h5>
+          <h5>{`Description: ${description}`}</h5>
         </div>
         <div className="panel-footer">
+          {speakers.map(({ id, name }) => (
+            <span key={id} style={{ padding: 2 }}>
+              <Link
+                className="btn btn-default btn-lg"
+                to={`/conference/speaker/${id}`}
+              >
+                {`View ${name}'s Profile`}
+              </Link>
+            </span>
+          ))}
         </div>
       </div>
     </div>
@@ -38,8 +129,8 @@ function SessionItem() {
 }
 
 export function Sessions() {
-
   const [day, setDay] = useState("");
+
   return (
     <>
       <section className="banner">

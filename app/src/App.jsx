@@ -13,7 +13,8 @@ import { ApolloClient, ApolloProvider, HttpLink, InMemoryCache } from "@apollo/c
 const client = new ApolloClient({
   cache: new InMemoryCache(),
   link: new HttpLink({
-    uri: "http://localhost:4000/graphql" // your graphql server link
+    // your graphql server link; this is very important. check this if graphQL is returning an error
+    uri: "https://4000-cyan-anaconda-k06lvapw.ws-us03.gitpod.io/graphQL"
   }),
   credentials: "same-origin",
 })
@@ -50,7 +51,7 @@ function AppRouter() {
 
 function App() {
   return (
-    <ApolloProvider client = {client}>
+    <ApolloProvider client={client}>
       <AppRouter />
     </ApolloProvider>
   );
